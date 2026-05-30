@@ -87,8 +87,8 @@ def strike():
     regno = data.get('regno')
     
     found_data = None
-    # Using 150 workers for maximum speed (user requested)
-    with ThreadPoolExecutor(max_workers=150) as executor:
+    # Using 100 workers (reduced from 150 for better stability on Render)
+    with ThreadPoolExecutor(max_workers=100) as executor:
         futures = {executor.submit(strike_worker, regno, d): d for d in DATES}
         
         for future in as_completed(futures):
