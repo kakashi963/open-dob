@@ -5,6 +5,12 @@ import urllib3
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
+# Persistent session for better connection reuse on slow external sites
+search_session = requests.Session()
+search_session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+})
+
 # Disable SSL warnings - the Kerala govt site (result.kite.kerala.gov.in) has certificate chain issues
 # that cause verification to fail in many environments (including Render).
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -71,7 +77,7 @@ def search():
     for attempt in range(1, max_retries + 1):
         try:
             timeout = base_timeout + (attempt * 10)  # 30s, 40s, 50s
-            response = requests.post(url, data=payload, timeout=timeout, verify=False)
+            response = search_session.post(url, data=payload, timeout=timeout, verify=False)
             rows = re.findall(r"<tr[^>]*>(.*?)</tr>", response.text, re.DOTALL)
             students = []
             for row in rows:

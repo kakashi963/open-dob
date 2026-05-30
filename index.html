@@ -311,7 +311,8 @@
         const scode = document.getElementById('selectedScode').value;
         const btn = document.getElementById('searchBtn');
         if (!scode) return alert("Select an institution first!");
-        btn.disabled = true; btn.innerText = "QUERYING STATE SERVERS...";
+        btn.disabled = true; 
+        btn.innerText = "QUERYING STATE SERVERS... (usually 15-40 seconds)";
         try {
             const res = await fetch('/search', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scode}) });
             const data = await res.json();
