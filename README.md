@@ -25,7 +25,7 @@ Then open http://localhost:5000
    git init
    git add .
    git commit -m "Initial commit - Open DOB"
-   git remote add origin https://github.com/YOUR_USERNAME/open-dob.git
+   git remote add origin https://github.com/kakashi963/open-dob.git
    git branch -M main
    git push -u origin main
    ```

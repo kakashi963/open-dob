@@ -1,8 +1,13 @@
 from flask import Flask, request, jsonify
 import requests
 import re
+import urllib3
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
+
+# Disable SSL warnings - the Kerala govt site (result.kite.kerala.gov.in) has certificate chain issues
+# that cause verification to fail in many environments (including Render).
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
@@ -23,7 +28,7 @@ def strike_worker(regno, date_str):
     first_digit = regno[0]
     url = f"https://results.kite.kerala.gov.in/K1TE@SPO@2025@9995994069/K1TE@SPO@20254069_{first_digit}/{date_str}{regno}.json"
     try:
-        response = requests.get(url, timeout=3.0)
+        response = requests.get(url, timeout=3.0, verify=False)
         if response.status_code == 200:
             try:
                 data = response.json()
@@ -59,7 +64,7 @@ def search():
     url = "https://result.kite.kerala.gov.in/analysis//Analysis/getAjaxSubmitSchoolwiseResult"
     payload = {"scode": scode}
     try:
-        response = requests.post(url, data=payload, timeout=25)
+        response = requests.post(url, data=payload, timeout=25, verify=False)
         rows = re.findall(r"<tr[^>]*>(.*?)</tr>", response.text, re.DOTALL)
         students = []
         for row in rows:
