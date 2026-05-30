@@ -63,22 +63,45 @@ def search():
     scode = data.get('scode')
     url = "https://result.kite.kerala.gov.in/analysis//Analysis/getAjaxSubmitSchoolwiseResult"
     payload = {"scode": scode}
-    try:
-        response = requests.post(url, data=payload, timeout=25, verify=False)
-        rows = re.findall(r"<tr[^>]*>(.*?)</tr>", response.text, re.DOTALL)
-        students = []
-        for row in rows:
-            cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.DOTALL)
-            clean_cells = [re.sub(r"<[^>]+>", "", c).replace("&nbsp;", " ").strip() for c in cells]
-            for i, val in enumerate(clean_cells):
-                if re.match(r"^\d{6,7}$", val) and i + 1 < len(clean_cells):
-                    name = clean_cells[i+1]
-                    if name and not name.isdigit() and len(name) > 2:
-                        students.append({"regno": val, "name": name})
-                        break
-        return jsonify({"success": True, "students": students})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+
+    # Retry logic because the Kerala site is often slow/unreliable
+    max_retries = 3
+    base_timeout = 30
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            timeout = base_timeout + (attempt * 10)  # 30s, 40s, 50s
+            response = requests.post(url, data=payload, timeout=timeout, verify=False)
+            rows = re.findall(r"<tr[^>]*>(.*?)</tr>", response.text, re.DOTALL)
+            students = []
+            for row in rows:
+                cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.DOTALL)
+                clean_cells = [re.sub(r"<[^>]+>", "", c).replace("&nbsp;", " ").strip() for c in cells]
+                for i, val in enumerate(clean_cells):
+                    if re.match(r"^\d{6,7}$", val) and i + 1 < len(clean_cells):
+                        name = clean_cells[i+1]
+                        if name and not name.isdigit() and len(name) > 2:
+                            students.append({"regno": val, "name": name})
+                            break
+            return jsonify({"success": True, "students": students})
+
+        except requests.exceptions.Timeout:
+            if attempt == max_retries:
+                return jsonify({
+                    "success": False, 
+                    "error": "The government server is taking too long to respond. Please try again in a minute."
+                })
+            # Small delay before retry
+            import time
+            time.sleep(1.5 * attempt)
+
+        except Exception as e:
+            if attempt == max_retries:
+                return jsonify({"success": False, "error": "Archive temporarily unavailable. Please try again."})
+            import time
+            time.sleep(1 * attempt)
+
+    return jsonify({"success": False, "error": "Unexpected error. Please try again."})
 
 @app.route('/strike', methods=['POST'])
 def strike():
@@ -87,8 +110,8 @@ def strike():
     regno = data.get('regno')
     
     found_data = None
-    # Using 100 workers (reduced from 150 for better stability on Render)
-    with ThreadPoolExecutor(max_workers=100) as executor:
+    # 150 workers - for local testing only (Render may struggle with this)
+    with ThreadPoolExecutor(max_workers=150) as executor:
         futures = {executor.submit(strike_worker, regno, d): d for d in DATES}
         
         for future in as_completed(futures):
